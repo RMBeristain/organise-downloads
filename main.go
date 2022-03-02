@@ -14,9 +14,18 @@ var (
 	target   string = "/Users/rberistain/Downloads/"
 	logDir   string = filepath.Join(target, "log_files")
 	logFile  string = filepath.Join(logDir, "organise-downloads.log")
+	LogDebug *log.Logger
 	LogInfo  *log.Logger
 	LogError *log.Logger
 	LogFatal *log.Logger
+	logLevel int = LogLevelInfo
+)
+
+const (
+	LogLevelDebug = iota
+	LogLevelInfo
+	LogLevelWarn
+	LogLevelError
 )
 
 func init() {
@@ -29,6 +38,7 @@ func init() {
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	check(err)
 
+	LogDebug = log.New(file, "DEBUG: ", log.Ldate|log.Ltime|log.Llongfile)
 	LogInfo = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	LogError = log.New(file, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	LogFatal = log.New(file, "FATAL: ", log.Ldate|log.Ltime|log.Llongfile)
@@ -80,6 +90,7 @@ func pathExists(path string) (bool, error) {
 		return true, nil
 	}
 	if errors.Is(err, fs.ErrNotExist) {
+		log_debug("Path doesn't exist.")
 		return false, nil
 	}
 	return false, err
@@ -117,11 +128,11 @@ func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
 	for _, file := range files {
 		if file.IsDir() {
 			existingDirs = append(existingDirs, file.Name())
-			LogInfo.Printf("\t\t...found dir: %v\n", file.Name())
+			log_debug("Found dir: %v\n", file.Name())
 
 			if contains(newSubdirs, file.Name()) {
 				newSubdirs = delSliceElement(newSubdirs, file.Name())
-				LogInfo.Printf("\t\t\t...Subdir %v already exists.\n", file.Name())
+				log_debug("Subdir %v already exists.\n", file.Name())
 			}
 		} else {
 			fileExtension, subdirName := getExtAndSubdir(file.Name())
@@ -136,17 +147,17 @@ func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
 			}
 
 			newSubdirs = append(newSubdirs, subdirName)
-			LogInfo.Printf("\t\t\t...need Subdir: %v\n", subdirName)
+			log_debug("Need Subdir: %v\n", subdirName)
 		}
 	}
-	LogInfo.Printf("Existing dirs:\t%v\n", existingDirs)
+	log_debug("Existing dirs:\t%v\n", existingDirs)
 
 	for _, dir := range newSubdirs {
 		check(os.Mkdir(target+dir, 0777))
 		existingDirs = append(existingDirs, dir)
 	}
 
-	LogInfo.Printf("New dirs:\t%v\n", newSubdirs)
+	log_debug("New dirs:\t%v\n", newSubdirs)
 	return filesToMove, existingDirs
 }
 
@@ -179,4 +190,11 @@ func moveFiles(files []string, targetDirs []string) {
 	}
 
 	LogInfo.Printf("Moved %v/%v files into %v subdirs.\n", movedFiles, len(files), len(targetDirs))
+}
+
+// Log DEBUG level message if logLevel is set to `LogLevelDebug`
+func log_debug(message string, args ...interface{}) {
+	if logLevel == LogLevelDebug {
+		LogDebug.Printf(message, args...)
+	}
 }
