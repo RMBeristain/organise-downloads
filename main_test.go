@@ -109,3 +109,22 @@ func TestPrivateDelSliceElement(t *testing.T) {
 		}
 	}
 }
+
+func TestGetExtAndSubdir(t *testing.T) {
+	testValue := [][]string{
+		{"file.ext", ".ext", "ext_files"},
+		{"noext", "", "_files"},
+		{".onlyext", ".onlyext", "onlyext_files"},
+		{".DS_Store", ".DS_Store", "DS_Store_files"},
+	}
+
+	for _, this := range testValue {
+		extension, subdir := getExtAndSubdir(this[0])
+		if extension != this[1] {
+			t.Errorf("Returned extension '%v' doesn't match expected '%v'", extension, this[1])
+		}
+		if subdir != this[2] {
+			t.Errorf("Returned subdir '%v' doesn't match expected '%v'", subdir, this[2])
+		}
+	}
+}
