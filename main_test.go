@@ -44,41 +44,38 @@ func TestPrivateDelSliceElement(t *testing.T) {
 	// Happy
 	for _, this := range slice {
 		var expected []string
-		testSlice := make([]string, len(slice))
 
-		copy(testSlice, slice)
-
-		for _, val := range testSlice {
+		for _, val := range slice {
 			if val != this {
 				expected = append(expected, val)
 			}
 		}
 
-		testSlice = delSliceElement(testSlice, this)
+		slice = delSliceElement(slice, this)
 
-		if len(testSlice) != len(expected) {
-			t.Errorf("Slice lenght (%d) is different from expected (%d)", len(testSlice), len(expected))
+		if len(slice) != len(expected) {
+			t.Errorf("Slice lenght (%d) is different from expected (%d)", len(slice), len(expected))
 		}
-		for i, elem := range testSlice {
+		for i, elem := range slice {
 			if elem != expected[i] {
 				t.Errorf("Slice element %d = %v is different from expected %v", i, elem, expected[i])
 			}
 		}
 	}
 
+	original := make([]string, 3)
+	copy(original, slice)
+
 	for _, this := range slice {
 		var expected []string
-		testSlice := make([]string, len(slice))
 
-		copy(testSlice, slice)
-
-		for _, val := range testSlice {
+		for _, val := range slice {
 			if val != this {
 				expected = append(expected, val)
 			}
 		}
 
-		newSlice := delSliceElement(testSlice, this)
+		newSlice := delSliceElement(slice, this)
 
 		if len(expected) != len(slice)-1 {
 			t.Errorf("Expected slice lenght (%d) is the same as original (%d)", len(expected), len(slice))
@@ -87,17 +84,17 @@ func TestPrivateDelSliceElement(t *testing.T) {
 			t.Errorf("New slice %v still contains deleted value %v", newSlice, this)
 		}
 		if len(newSlice) != len(expected) {
-			t.Errorf("New slice lenght (%d) is different from expected (%d)", len(testSlice), len(expected))
+			t.Errorf("New slice lenght (%d) is different from expected (%d)", len(slice), len(expected))
 		}
-		if len(testSlice) != len(slice) {
-			t.Errorf("Original slice lenght (%d) is different from expected (%d)", len(testSlice), len(slice))
+		if len(slice) != len(original) {
+			t.Errorf("Original slice lenght (%d) is different from expected (%d)", len(slice), len(original))
 		}
 		for i, elem := range newSlice {
 			if elem != expected[i] {
 				t.Errorf("New slice element %d = %v is different from expected %v", i, elem, expected[i])
 			}
 		}
-		for i, elem := range testSlice {
+		for i, elem := range slice {
 			if elem != slice[i] {
 				t.Errorf("Original slice element %d = %v is different from expected %v", i, elem, slice[i])
 			}
