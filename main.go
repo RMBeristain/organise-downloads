@@ -122,6 +122,8 @@ func getExtAndSubdir(fileName string) (string, string) {
 }
 
 // Return a slice of filenames that will be moved into corresponding subdirs, and a slice of subdirs.
+//
+// If subdir doesn't exist, create it.
 func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
 	var existingDirs []string
 	var newSubdirs []string
