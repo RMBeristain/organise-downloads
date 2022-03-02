@@ -100,9 +100,11 @@ func pathExists(path string) (bool, error) {
 //
 // How is this not built-in???
 func delSliceElement(slice []string, element string) []string {
-	for i, this := range slice {
+	newSlice := make([]string, len(slice))
+	copy(newSlice, slice)
+	for i, this := range newSlice {
 		if this == element {
-			return append(slice[:i], slice[i+1:]...)
+			return append(newSlice[:i], newSlice[i+1:]...)
 		}
 	}
 	return slice
