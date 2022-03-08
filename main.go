@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"log"
@@ -200,5 +201,11 @@ func moveFiles(files []string, targetDirs []string) {
 func log_debug(message string, args ...interface{}) {
 	if logLevel == LogLevelDebug {
 		LogDebug.Printf(message, args...)
+		bla("tesing only")
 	}
+}
+
+func bla(param string) string {
+	fmt.Println(param)
+	return param
 }

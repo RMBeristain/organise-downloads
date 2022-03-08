@@ -1,6 +1,11 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
+	"os/user"
+	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -130,5 +135,73 @@ func TestGetExtAndSubdir(t *testing.T) {
 		if subdir != this.subfolder {
 			t.Errorf("Returned subdir '%v' doesn't match expected '%v'", subdir, this.subfolder)
 		}
+	}
+}
+
+// Setup function for getFilesToMove
+func setupSuiteGetFilesToMove(tb testing.TB) func(tb testing.TB) {
+	//Create test subdir ~/Downloads/organise-downloads-tests
+	// we assume having permissions to the path since that's where we work
+	usr, _ := user.Current()
+	dir := usr.HomeDir
+	testPath := filepath.Join(dir, "Downloads", "organise-downloads-tests")
+
+	if exists, err := pathExists(testPath); !exists && err == nil {
+		err = os.Mkdir(testPath, 0755)
+		if err != nil {
+			tb.Errorf("Unable to create test subdirectory '%v'", testPath)
+		}
+
+		// add some test files
+		f1 := []byte("File 1\n")
+		err := os.WriteFile(path.Join(testPath, "file1.txt"), f1, 0644)
+		if err != nil {
+
+		}
+	}
+
+	// Return a function to tear down the suite
+	return func(tb testing.TB) {
+		if exists, err := pathExists(testPath); exists && err == nil {
+			files, err := ioutil.ReadDir(testPath)
+			if err != nil {
+				tb.Errorf("Cannot find test subdir '%v'", testPath)
+			}
+
+			for _, this := range files {
+				fqFile := path.Join(testPath, this.Name())
+				err = os.RemoveAll(fqFile)
+				if err != nil {
+					tb.Errorf("Unable to delete test file '%v'", fqFile)
+				}
+			}
+
+			err = os.Remove(testPath)
+			if err != nil {
+				tb.Errorf("Unable to delete test subdir %v", testPath)
+			}
+		}
+	}
+}
+
+func TestGetFilesToMove(t *testing.T) {
+	teardownSuite := setupSuiteGetFilesToMove(t)
+	defer teardownSuite(t)
+
+	table := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"one", "Hi mom!", "Hi mom!"},
+	}
+
+	for _, this := range table {
+		t.Run(this.name, func(t *testing.T) {
+			result := bla(this.input)
+			if result != this.expected {
+				t.Errorf("expected %v, got %v", this.expected, result)
+			}
+		})
 	}
 }
