@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -12,14 +13,14 @@ import (
 )
 
 var (
-	target   string = "/Users/rberistain/Downloads/"
-	logDir   string = filepath.Join(target, "log_files")
-	logFile  string = filepath.Join(logDir, "organise-downloads.log")
-	LogDebug *log.Logger
-	LogInfo  *log.Logger
-	LogError *log.Logger
-	LogFatal *log.Logger
-	logLevel int = LogLevelInfo
+	targetDir   string = "/Users/rberistain/Downloads/"
+	logFileName string = "organise-downloads.log"
+	logDirName  string = "log_files"
+	LogDebug    *log.Logger
+	LogInfo     *log.Logger
+	LogError    *log.Logger
+	LogFatal    *log.Logger
+	logLevel    int = LogLevelInfo
 )
 
 const (
@@ -30,18 +31,37 @@ const (
 )
 
 func init() {
+	var logDir string
+	var logFile string
+
+	pDownloadDir := flag.String("downloads", targetDir, "Full path to Downloads dir")
+	flag.Parse() // read command line flags
+
+	if *pDownloadDir != targetDir {
+		targetDir = *pDownloadDir // use command line value
+		log.Printf("Will write to %v\n", targetDir)
+	}
+
+	logDir = filepath.Join(targetDir, logDirName)
+
 	if exists, err := pathExists(logDir); !exists && err == nil {
-		err := os.Mkdir(logDir, 0777)
+		log.Printf("Dir %v does not exist, will try to create it...\n", logDir)
+		err = os.Mkdir(logDir, 0777)
 		if err != nil {
-			log.Fatalf("Unable to create dir %v - %v", logDir, err)
-			panic(err)
+			log.Printf("Unable to create dir %v - %v\n", logDir, err)
+			log.Println("Try running program again and specifying a valid path.")
+			os.Exit(1)
 		}
 	} else if err != nil {
 		log.Fatalf("Unable to create log directory %v", err)
 	}
 
+	logFile = filepath.Join(logDir, logFileName)
+
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	check(err)
+	if err != nil {
+		log.Panicf("Cannot write to log file %v - %v", logFile, err)
+	}
 
 	LogDebug = log.New(file, "DEBUG: ", log.Ldate|log.Ltime|log.Llongfile)
 	LogInfo = log.New(file, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -51,7 +71,7 @@ func init() {
 
 func main() {
 	LogInfo.Print("START.")
-	files, err := ioutil.ReadDir(target)
+	files, err := ioutil.ReadDir(targetDir)
 	check(err)
 
 	filesToMove, targetDirs := getFilesToMove(files)
@@ -74,7 +94,7 @@ func main() {
 func check(err error) {
 	if err != nil {
 		LogFatal.Print(err)
-		log.Fatal(err) // panic(err)
+		log.Fatalf("FATAL: %v", err) // panic(err)
 	}
 }
 
@@ -162,7 +182,7 @@ func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
 	log_debug("Existing dirs:\t%v\n", existingDirs)
 
 	for _, dir := range newSubdirs {
-		check(os.Mkdir(target+dir, 0777))
+		check(os.Mkdir(targetDir+dir, 0777))
 		existingDirs = append(existingDirs, dir)
 	}
 
@@ -182,8 +202,8 @@ func moveFiles(files []string, targetDirs []string) {
 			continue
 		}
 
-		oldPath := filepath.Join(target, file)
-		newPath := filepath.Join(target, subDir, file)
+		oldPath := filepath.Join(targetDir, file)
+		newPath := filepath.Join(targetDir, subDir, file)
 
 		LogInfo.Printf("...moving %v -> %v", oldPath, newPath)
 
