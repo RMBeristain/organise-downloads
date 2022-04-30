@@ -31,9 +31,13 @@ const (
 
 func init() {
 	if exists, err := pathExists(logDir); !exists && err == nil {
-		check(os.Mkdir(logDir, 0777))
+		err := os.Mkdir(logDir, 0777)
+		if err != nil {
+			log.Fatalf("Unable to create dir %v - %v", logDir, err)
+			panic(err)
+		}
 	} else if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to create log directory %v", err)
 	}
 
 	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
