@@ -44,16 +44,10 @@ func init() {
 
 	logDir = filepath.Join(targetDir, logDirName)
 
-	if exists, err := pathExists(logDir); !exists && err == nil {
-		log.Printf("Dir %v does not exist, will try to create it...\n", logDir)
-		err = os.Mkdir(logDir, 0777)
-		if err != nil {
-			log.Printf("Unable to create dir %v - %v\n", logDir, err)
-			log.Println("Try running program again and specifying a valid path.")
-			os.Exit(1)
-		}
-	} else if err != nil {
-		log.Fatalf("Unable to create log directory %v", err)
+	if created, err := createDirIfNotExists(logDir); err != nil {
+		log.Fatalf("FATAL: Unable to create dir %v - %v", logDir, err)
+	} else if created {
+		log.Printf("Created missing directory %v", logDir)
 	}
 
 	logFile = filepath.Join(logDir, logFileName)
@@ -86,6 +80,25 @@ func main() {
 
 	LogInfo.Print("DONE.")
 	os.Exit(0)
+}
+
+// Returns true if dir was created, else false; if there is an error returns (false, err)
+func createDirIfNotExists(dirName string) (bool, error) {
+	if exists, err := pathExists(dirName); !exists && err == nil {
+		log.Printf("Dir %v does not exist, will try to create it...\n", dirName)
+		err = os.Mkdir(dirName, 0777)
+		if err != nil {
+			log.Printf("Unable to create dir %v - %v\n", dirName, err)
+			return false, err
+		}
+
+		return true, nil
+	} else if err != nil {
+		log.Printf("Unable to create log directory %v", err)
+		return false, err
+	}
+
+	return false, nil
 }
 
 // Check whether there was an error.
