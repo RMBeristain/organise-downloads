@@ -1,3 +1,3 @@
-module organise-downloads
+module github.com/RMBeristain/organise-downloads
 
-go 1.17
+go 1.18

@@ -3,19 +3,21 @@ package main
 import (
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
+	"runtime"
 	"testing"
+
+	"github.com/RMBeristain/organise-downloads/local_utils"
 )
 
-// Test private function 'contains'
-func TestPrivateContains(t *testing.T) {
+// Test function 'contains'
+func TestContains(t *testing.T) {
 	slice := []string{"a", "b", "c"}
 
 	// Happy
 	for _, this := range slice {
-		result := contains(slice, this)
+		result := local_utils.Contains(slice, this)
 
 		if !result {
 			t.Errorf("Expected 'true' for '%v' but got 'false'", this)
@@ -23,7 +25,7 @@ func TestPrivateContains(t *testing.T) {
 	}
 
 	// Errors
-	if contains(slice, "X") != false {
+	if local_utils.Contains(slice, "X") != false {
 		t.Errorf("Expected 'false' but got 'true'")
 	}
 }
@@ -85,7 +87,7 @@ func TestPrivateDelSliceElement(t *testing.T) {
 		if len(expected) != len(slice)-1 {
 			t.Errorf("Expected slice lenght (%d) is the same as original (%d)", len(expected), len(slice))
 		}
-		if contains(newSlice, this) {
+		if local_utils.Contains(newSlice, this) {
 			t.Errorf("New slice %v still contains deleted value %v", newSlice, this)
 		}
 		if len(newSlice) != len(expected) {
@@ -140,23 +142,33 @@ func TestGetExtAndSubdir(t *testing.T) {
 
 // Setup function for getFilesToMove
 func setupSuiteGetFilesToMove(tb testing.TB) func(tb testing.TB) {
-	//Create test subdir ~/Downloads/organise-downloads-tests
+	//Create test subdir organise-downloads-tests
 	// we assume having permissions to the path since that's where we work
-	usr, _ := user.Current()
-	dir := usr.HomeDir
-	testPath := filepath.Join(dir, "Downloads", "organise-downloads-tests")
+
+	var testDir string = "Downloads"
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		tb.Fatalf("Unable to determine user home dir - %v", err)
+	}
+
+	if this_os := runtime.GOOS; this_os == "linux" {
+		homeDir = "/tmp"
+		testDir = ""
+	}
+
+	testPath := filepath.Join(homeDir, testDir, "organise-downloads-tests")
 
 	if exists, err := pathExists(testPath); !exists && err == nil {
 		err = os.Mkdir(testPath, 0755)
 		if err != nil {
-			tb.Errorf("Unable to create test subdirectory '%v'", testPath)
+			tb.Fatalf("Unable to create test subdirectory '%v'", testPath)
 		}
 
 		// add some test files
 		f1 := []byte("File 1\n")
 		err := os.WriteFile(path.Join(testPath, "file1.txt"), f1, 0644)
 		if err != nil {
-
+			tb.Errorf("Cannot add test file %v", testPath)
 		}
 	}
 

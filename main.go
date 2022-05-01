@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/RMBeristain/organise-downloads/local_utils"
 )
 
 var (
@@ -21,6 +23,7 @@ var (
 	LogError    *log.Logger
 	LogFatal    *log.Logger
 	logLevel    int = LogLevelInfo
+	Contains        = local_utils.Contains
 )
 
 const (
@@ -30,7 +33,7 @@ const (
 	LogLevelError
 )
 
-func init() {
+func initLoggingToFile() {
 	var logDir string
 	var logFile string
 
@@ -64,6 +67,8 @@ func init() {
 }
 
 func main() {
+	initLoggingToFile()
+
 	LogInfo.Print("START.")
 	files, err := ioutil.ReadDir(targetDir)
 	check(err)
@@ -109,16 +114,6 @@ func check(err error) {
 		LogFatal.Print(err)
 		log.Fatalf("FATAL: %v", err) // panic(err)
 	}
-}
-
-// Check whether 'slice' contains 'element'.
-func contains(slice []string, element string) bool {
-	for _, this := range slice {
-		if this == element {
-			return true
-		}
-	}
-	return false
 }
 
 // Returns whether the given file or directory exists
@@ -172,19 +167,19 @@ func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
 			existingDirs = append(existingDirs, file.Name())
 			log_debug("Found dir: %v\n", file.Name())
 
-			if contains(newSubdirs, file.Name()) {
+			if Contains(newSubdirs, file.Name()) {
 				newSubdirs = delSliceElement(newSubdirs, file.Name())
 				log_debug("Subdir %v already exists.\n", file.Name())
 			}
 		} else {
 			fileExtension, subdirName := getExtAndSubdir(file.Name())
 
-			if contains(excludedExtensions(), fileExtension) {
+			if Contains(excludedExtensions(), fileExtension) {
 				continue
 			}
 			filesToMove = append(filesToMove, file.Name())
 
-			if contains(existingDirs, subdirName) || contains(newSubdirs, subdirName) {
+			if Contains(existingDirs, subdirName) || Contains(newSubdirs, subdirName) {
 				continue
 			}
 
@@ -210,7 +205,7 @@ func moveFiles(files []string, targetDirs []string) {
 	for _, file := range files {
 		_, subDir := getExtAndSubdir(file)
 
-		if !contains(targetDirs, subDir) {
+		if !Contains(targetDirs, subDir) {
 			LogError.Printf("Skipping file '%v' without corresponding subdir '%v'", file, subDir)
 			continue
 		}
