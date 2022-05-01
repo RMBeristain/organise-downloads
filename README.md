@@ -1,5 +1,9 @@
 # Organise Downloads
 
-Organise `~/Downloads` folders. Move 'file.exe' to 'exe_folder' subdirs to keep things tidy.
+Organise `~/Downloads` folders.
+
+For example, move 'file.exe' to 'exe_folder' subdir to keep things tidy.
 
 Can add exceptions.
+
+For options run with `-help`
