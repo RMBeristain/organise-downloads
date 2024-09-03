@@ -1,15 +1,16 @@
 package main
 
 import (
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/RMBeristain/organise-downloads/local_utils"
 )
+
+const defaultWorkingDir string = "Downloads"
 
 // Test function 'contains'
 func TestContains(t *testing.T) {
@@ -140,79 +141,127 @@ func TestGetExtAndSubdir(t *testing.T) {
 	}
 }
 
-// Setup function for getFilesToMove
-func setupSuiteGetFilesToMove(tb testing.TB) func(tb testing.TB) {
-	//Create test subdir organise-downloads-tests
-	// we assume having permissions to the path since that's where we work
-
-	var testDir string = "Downloads"
+// getTestsWorkingDir returns the fully-qualified path to a directory where we can temporarily store test artifacts.
+// By default, we will create a subfolder within ~/Downloads because we assume we'll have write permission there.
+func getTestsWorkingDir(tb testing.TB) (testsWorkingDir string) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		tb.Fatalf("Unable to determine user home dir - %v", err)
 	}
+	return filepath.Join(homeDir, defaultWorkingDir, "organise-downloads-tests")
+}
 
-	if this_os := runtime.GOOS; this_os == "linux" {
-		homeDir = "/tmp"
-		testDir = ""
+// Setup function for getFilesToMove creates some test files and returns a teardownSuite function.
+func setupSuiteGetFilesToMove(tb testing.TB) (
+	testFiles []fs.DirEntry,
+	expectedSubDir string,
+	teardownSuite func(tb testing.TB)) {
+
+	const testFile1 string = "file1.txt"
+	expectedSubDir = "txt_files"
+
+	testWorkingDir := getTestsWorkingDir(tb)
+	tb.Logf("initialising test data in %v", testWorkingDir)
+
+	if exists, err := pathExists(testWorkingDir); !exists && err == nil {
+		err = os.Mkdir(testWorkingDir, 0755)
+		if err != nil {
+			tb.Fatalf("Unable to create test subdirectory '%v'", testWorkingDir)
+		}
 	}
 
-	testPath := filepath.Join(homeDir, testDir, "organise-downloads-tests")
-
-	if exists, err := pathExists(testPath); !exists && err == nil {
-		err = os.Mkdir(testPath, 0755)
-		if err != nil {
-			tb.Fatalf("Unable to create test subdirectory '%v'", testPath)
-		}
-
-		// add some test files
-		f1 := []byte("File 1\n")
-		err := os.WriteFile(path.Join(testPath, "file1.txt"), f1, 0644)
-		if err != nil {
-			tb.Errorf("Cannot add test file %v", testPath)
-		}
+	// add some test files
+	f1 := []byte("I am File 1\n")
+	err := os.WriteFile(path.Join(testWorkingDir, testFile1), f1, 0644)
+	if err != nil {
+		tb.Errorf("Cannot add test file %v at %v", testFile1, testWorkingDir)
 	}
+	tb.Logf("wrote test file %v/%v", testWorkingDir, testFile1)
+
+	// get the list of test files
+	testFiles, err = os.ReadDir(testWorkingDir)
+	if err != nil {
+		tb.Errorf("Cannot read test dir %v", testWorkingDir)
+	}
+	tb.Logf("will test over (%v) file(s) %v", len(testFiles), testFiles)
 
 	// Return a function to tear down the suite
-	return func(tb testing.TB) {
-		if exists, err := pathExists(testPath); exists && err == nil {
-			files, err := ioutil.ReadDir(testPath)
+	return testFiles, expectedSubDir, func(tb testing.TB) {
+		if exists, err := pathExists(testWorkingDir); exists && err == nil {
+			files, err := os.ReadDir(testWorkingDir)
 			if err != nil {
-				tb.Errorf("Cannot find test subdir '%v'", testPath)
+				tb.Errorf("Cannot find test subdir '%v'", testWorkingDir)
 			}
 
 			for _, this := range files {
-				fqFile := path.Join(testPath, this.Name())
+				fqFile := path.Join(testWorkingDir, this.Name())
 				err = os.RemoveAll(fqFile)
 				if err != nil {
 					tb.Errorf("Unable to delete test file '%v'", fqFile)
 				}
 			}
 
-			err = os.Remove(testPath)
+			err = os.Remove(testWorkingDir)
 			if err != nil {
-				tb.Errorf("Unable to delete test subdir %v", testPath)
+				tb.Errorf("Unable to delete test subdir %v", testWorkingDir)
 			}
 		}
 	}
 }
 
 func TestGetFilesToMove(t *testing.T) {
-	teardownSuite := setupSuiteGetFilesToMove(t)
+	testFiles, testsWorkingDir, teardownSuite := setupSuiteGetFilesToMove(t)
 	defer teardownSuite(t)
 
+	var emptyDirSlice []fs.DirEntry
 	table := []struct {
-		name     string
-		input    string
-		expected string
+		name         string
+		input        []fs.DirEntry
+		expected     []fs.DirEntry
+		expectedPath string
 	}{
-		{"one", "Hi mom!", "Hi mom!"},
+		{
+			"one file", testFiles, testFiles, testsWorkingDir,
+		},
+		{
+			"no files", emptyDirSlice, emptyDirSlice, "some_path_that_shouldnt_exist",
+		},
 	}
+	for _, thisCase := range table {
+		t.Run(thisCase.name, func(t *testing.T) {
+			t.Logf("testing %v", thisCase.input)
 
-	for _, this := range table {
-		t.Run(this.name, func(t *testing.T) {
-			result := bla(this.input)
-			if result != this.expected {
-				t.Errorf("expected %v, got %v", this.expected, result)
+			workingDir := *getCurrentUserDownloadPath()
+
+			// make the call we're testing
+			t.Logf("working on %v", workingDir)
+			filesToMove := getFilesToMove(thisCase.input)
+
+			// Tests
+			if len(filesToMove) == 0 {
+				if thisCase.name == "no files" {
+					t.Skipf("OK - skipping dir without files")
+				}
+				t.Errorf("expected to find files to move, got %v", filesToMove)
+			}
+
+			matches := make(map[string]int) // number of files with this name we expect to find
+			for _, file := range thisCase.expected {
+				matches[file.Name()]++
+			}
+			for destination, files := range filesToMove {
+				if destination != thisCase.expectedPath {
+					t.Errorf("expected %v to match %v", destination, thisCase.expectedPath)
+				}
+				for _, file := range files {
+					if count, ok := matches[file]; !ok {
+						t.Errorf("expected count of %v to be %v, got unknown file", file, count)
+					} else if count == 0 {
+						t.Errorf("expected count of %v to be %v, got not matches", file, count)
+
+					}
+					matches[file]--
+				}
 			}
 		})
 	}
