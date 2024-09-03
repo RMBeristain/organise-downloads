@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -38,7 +37,12 @@ func initLoggingToFile() {
 	var logFile string
 
 	pDownloadDir := flag.String("downloads", defaultSrcDir, "Full path to Downloads dir")
+	pNewLogLevel := flag.Int("loglevel", LogLevelInfo, "Use this log level [0:3]")
 	flag.Parse() // read command line flags
+
+	if *pNewLogLevel != logLevel && LogLevelDebug <= *pNewLogLevel && *pNewLogLevel <= LogLevelError {
+		logLevel = *pNewLogLevel
+	}
 
 	if *pDownloadDir != defaultSrcDir {
 		defaultSrcDir = *pDownloadDir // use command line value
@@ -227,14 +231,14 @@ func moveFiles(sourcePath string, filesToMove map[string][]string) {
 // Log DEBUG level message if logLevel is set to `LogLevelDebug`
 func log_debug(message string, args ...interface{}) {
 	if logLevel == LogLevelDebug {
+		defer func() {
+			if r := recover(); r != nil {
+				// LogDebug isn't defined yet
+				log.Printf(message, args...)
+			}
+		}()
 		LogDebug.Printf(message, args...)
-		say("tesing only")
 	}
-}
-
-func say(param string) string {
-	fmt.Println(param)
-	return param
 }
 
 // getCurrentUserDownloadPath finds the current user and their home directory. The return value is the address of a
@@ -245,6 +249,6 @@ func getCurrentUserDownloadPath() *string {
 	homeDir, err := os.UserHomeDir()
 	dieIf(err)
 	defaultPath := filepath.Join(homeDir, defaultSrcDir)
-	log.Printf("Using default path %v for user %v\n", defaultPath, currentUser.Username) // use log; LogInfo isn't ready
+	log_debug("Using default path %v for user %v\n", defaultPath, currentUser.Username) // use log; LogInfo isn't ready
 	return &defaultPath
 }
