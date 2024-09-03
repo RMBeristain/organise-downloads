@@ -266,3 +266,62 @@ func TestGetFilesToMove(t *testing.T) {
 		})
 	}
 }
+
+func TestMoveFile(t *testing.T) {
+	testFiles, testsWorkingDir, teardownSuite := setupSuiteGetFilesToMove(t)
+	defer teardownSuite(t)
+
+	var emptyDirSlice []fs.DirEntry
+	table := []struct {
+		name         string
+		input        []fs.DirEntry
+		expectedPath string
+	}{
+		{
+			"one file", testFiles, testsWorkingDir,
+		},
+		{
+			"no files", emptyDirSlice, testsWorkingDir,
+		},
+	}
+
+	initLoggingToFile()
+
+	for _, thisCase := range table {
+		t.Run(
+			thisCase.name,
+			func(t *testing.T) {
+				t.Logf("testing %v", thisCase.input)
+
+				workingDir := getTestsWorkingDir(t)
+				filesToMove := getFilesToMove(thisCase.input)
+				expectedNewDir := filepath.Join(workingDir, thisCase.expectedPath)
+
+				// make the call we're testing
+				moveFiles(workingDir, filesToMove)
+
+				// Tests
+				files, err := os.ReadDir(expectedNewDir)
+				if err != nil {
+					t.Fatalf("expected to read files from %v, got %v", expectedNewDir, err.Error())
+				}
+
+				matches := make(map[string]int) // number of files with this name we expect to find
+				for _, file := range files {
+					matches[file.Name()]++
+				}
+				for _, files := range filesToMove {
+					for _, expectedFile := range files {
+						if count, ok := matches[expectedFile]; !ok {
+							t.Errorf("expected count of %v to be %v, got unknown file", expectedFile, count)
+						} else if count == 0 {
+							t.Errorf("expected count of %v to be %v, got not matches", expectedFile, count)
+						}
+						matches[expectedFile]--
+					}
+				}
+			},
+		)
+	}
+
+}
