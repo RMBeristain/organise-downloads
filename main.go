@@ -203,12 +203,13 @@ func moveFiles(sourcePath string, filesToMove map[string][]string) {
 		totalFileCount += len(files)
 		for _, file := range files {
 			oldFullPath := filepath.Join(sourcePath, file)
-			newFullPath := filepath.Join(newPath, file)
+			subDir := filepath.Join(sourcePath, newPath)
+			newFullPath := filepath.Join(subDir, file)
 
 			LogInfo.Printf("...moving %v -> %v", oldFullPath, newFullPath)
 
 			if exists, err := pathExists(newFullPath); !exists && err == nil {
-				createSubdirIfNotExists(newPath)
+				createSubdirIfNotExists(subDir)
 				dieIf(os.Rename(oldFullPath, newFullPath))
 			} else if exists {
 				LogError.Printf("Skipping file '%v' that already exists in: %v", file, newFullPath)
