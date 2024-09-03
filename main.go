@@ -128,7 +128,7 @@ func pathExists(path string) (bool, error) {
 		return true, nil
 	}
 	if errors.Is(err, fs.ErrNotExist) {
-		log_debug("Path doesn't exist.")
+		log_debug("Path %v doesn't exist.", path)
 		return false, nil
 	}
 	return false, err
