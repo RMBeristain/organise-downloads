@@ -3,11 +3,10 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -15,15 +14,15 @@ import (
 )
 
 var (
-	targetDir   string = "/Users/rberistain/Downloads/"
-	logFileName string = "organise-downloads.log"
-	logDirName  string = "log_files"
-	LogDebug    *log.Logger
-	LogInfo     *log.Logger
-	LogError    *log.Logger
-	LogFatal    *log.Logger
-	logLevel    int = LogLevelInfo
-	Contains        = local_utils.Contains
+	defaultSrcDir string = "Downloads"
+	logFileName   string = "organise-downloads.log"
+	logDirName    string = "log_files"
+	LogDebug      *log.Logger
+	LogInfo       *log.Logger
+	LogError      *log.Logger
+	LogFatal      *log.Logger
+	logLevel      int = LogLevelInfo
+	Contains          = local_utils.Contains
 )
 
 const (
@@ -37,15 +36,22 @@ func initLoggingToFile() {
 	var logDir string
 	var logFile string
 
-	pDownloadDir := flag.String("downloads", targetDir, "Full path to Downloads dir")
+	pDownloadDir := flag.String("downloads", defaultSrcDir, "Full path to Downloads dir")
+	pNewLogLevel := flag.Int("loglevel", LogLevelInfo, "Use this log level [0:3]")
 	flag.Parse() // read command line flags
 
-	if *pDownloadDir != targetDir {
-		targetDir = *pDownloadDir // use command line value
-		log.Printf("Will write to %v\n", targetDir)
+	if *pNewLogLevel != logLevel && LogLevelDebug <= *pNewLogLevel && *pNewLogLevel <= LogLevelError {
+		logLevel = *pNewLogLevel
 	}
 
-	logDir = filepath.Join(targetDir, logDirName)
+	if *pDownloadDir != defaultSrcDir {
+		defaultSrcDir = *pDownloadDir // use command line value
+	} else {
+		defaultSrcDir = *getCurrentUserDownloadPath()
+	}
+
+	log.Printf("Will log to %v\n", defaultSrcDir)
+	logDir = filepath.Join(defaultSrcDir, logDirName)
 
 	if created, err := createDirIfNotExists(logDir); err != nil {
 		log.Fatalf("FATAL: Unable to create dir %v - %v", logDir, err)
@@ -70,15 +76,14 @@ func main() {
 	initLoggingToFile()
 
 	LogInfo.Print("START.")
-	files, err := ioutil.ReadDir(targetDir)
-	check(err)
+	files, err := os.ReadDir(defaultSrcDir) // get all files
+	dieIf(err)
 
-	filesToMove, targetDirs := getFilesToMove(files)
+	filesToMove := getFilesToMove(files)
 
 	if len(filesToMove) > 0 {
 		LogInfo.Printf("Files to move : %v\n", filesToMove)
-		LogInfo.Printf("Target dirs   : %v\n", targetDirs)
-		moveFiles(filesToMove, targetDirs)
+		moveFiles(defaultSrcDir, filesToMove)
 	} else {
 		LogInfo.Print("No files to move.")
 	}
@@ -109,9 +114,9 @@ func createDirIfNotExists(dirName string) (bool, error) {
 // Check whether there was an error.
 //
 // If an error exists, terminate.
-func check(err error) {
+func dieIf(err error) {
 	if err != nil {
-		LogFatal.Print(err)
+		LogFatal.Printf("something went wrong: %v", err.Error())
 		log.Fatalf("FATAL: %v", err) // panic(err)
 	}
 }
@@ -123,7 +128,7 @@ func pathExists(path string) (bool, error) {
 		return true, nil
 	}
 	if errors.Is(err, fs.ErrNotExist) {
-		log_debug("Path doesn't exist.")
+		log_debug("Path %v doesn't exist.", path)
 		return false, nil
 	}
 	return false, err
@@ -154,90 +159,96 @@ func getExtAndSubdir(fileName string) (string, string) {
 	return fileExtension, strings.Replace(fileExtension, ".", "", 1) + "_files"
 }
 
-// Return a slice of filenames that will be moved into corresponding subdirs, and a slice of subdirs.
+// Return a map of subdirs to slices of files.
 //
-// If subdir doesn't exist, create it.
-func getFilesToMove(files []fs.FileInfo) ([]string, []string) {
-	var existingDirs []string
-	var newSubdirs []string
-	var filesToMove []string
-
+// Each key is a destination subdir, and its value is a slice of files that should be moved into it.
+func getFilesToMove(files []fs.DirEntry) (targets map[string][]string) {
+	targets = make(map[string][]string)
 	for _, file := range files {
+		fileName := file.Name()
 		if file.IsDir() {
-			existingDirs = append(existingDirs, file.Name())
-			log_debug("Found dir: %v\n", file.Name())
-
-			if Contains(newSubdirs, file.Name()) {
-				newSubdirs = delSliceElement(newSubdirs, file.Name())
-				log_debug("Subdir %v already exists.\n", file.Name())
+			if _, ok := targets[fileName]; !ok {
+				targets[fileName] = []string{}
 			}
 		} else {
-			fileExtension, subdirName := getExtAndSubdir(file.Name())
+			fileExtension, destination := getExtAndSubdir(fileName)
 
 			if Contains(excludedExtensions(), fileExtension) {
 				continue
 			}
-			filesToMove = append(filesToMove, file.Name())
-
-			if Contains(existingDirs, subdirName) || Contains(newSubdirs, subdirName) {
-				continue
-			}
-
-			newSubdirs = append(newSubdirs, subdirName)
-			log_debug("Need Subdir: %v\n", subdirName)
+			targets[destination] = append(targets[destination], fileName)
 		}
 	}
-	log_debug("Existing dirs:\t%v\n", existingDirs)
-
-	for _, dir := range newSubdirs {
-		check(os.Mkdir(targetDir+dir, 0777))
-		existingDirs = append(existingDirs, dir)
-	}
-
-	log_debug("New dirs:\t%v\n", newSubdirs)
-	return filesToMove, existingDirs
+	return targets
 }
 
-// Move each file in 'files' to its corresponding directory in 'targetDirs'
-func moveFiles(files []string, targetDirs []string) {
-	var movedFiles int = 0
-
-	for _, file := range files {
-		_, subDir := getExtAndSubdir(file)
-
-		if !Contains(targetDirs, subDir) {
-			LogError.Printf("Skipping file '%v' without corresponding subdir '%v'", file, subDir)
-			continue
+// Create new subdirs if they not exist. If a subdir cannot be created, panic.
+//
+// - subDir: the new subdir to be created
+func createSubdirIfNotExists(subDir string) {
+	if exists, err := pathExists(subDir); err == nil && !exists {
+		err := os.Mkdir(subDir, 0777)
+		if err != nil {
+			log.Printf("Is 'subDir'='%v' a fully qualified path?", subDir)
+			log.Fatalf("unable to create dir %v: %v", subDir, err.Error())
 		}
-
-		oldPath := filepath.Join(targetDir, file)
-		newPath := filepath.Join(targetDir, subDir, file)
-
-		LogInfo.Printf("...moving %v -> %v", oldPath, newPath)
-
-		if exists, err := pathExists(newPath); !exists && err == nil {
-			check(os.Rename(oldPath, newPath))
-		} else if exists {
-			LogError.Printf("Skipping file '%v' that already exists in: %v", file, newPath)
-		} else {
-			LogFatal.Print(err)
-		}
-
-		movedFiles += 1
+		log.Printf("created dir %v", subDir)
+	} else if err != nil {
+		log.Fatalf(err.Error())
 	}
+}
 
-	LogInfo.Printf("Moved %v/%v files into %v subdirs.\n", movedFiles, len(files), len(targetDirs))
+// Move each file to its corresponding directory.
+func moveFiles(sourcePath string, filesToMove map[string][]string) {
+	var movedFileCount int = 0
+	var totalFileCount int = 0
+
+	for newPath, files := range filesToMove {
+		totalFileCount += len(files)
+		for _, file := range files {
+			oldFullPath := filepath.Join(sourcePath, file)
+			subDir := filepath.Join(sourcePath, newPath)
+			newFullPath := filepath.Join(subDir, file)
+
+			LogInfo.Printf("...moving %v -> %v", oldFullPath, newFullPath)
+
+			if exists, err := pathExists(newFullPath); !exists && err == nil {
+				createSubdirIfNotExists(subDir)
+				dieIf(os.Rename(oldFullPath, newFullPath))
+			} else if exists {
+				LogError.Printf("Skipping file '%v' that already exists in: %v", file, newFullPath)
+			} else {
+				LogFatal.Print(err)
+			}
+
+			movedFileCount += 1
+		}
+
+	}
+	LogInfo.Printf("Moved %v/%v files into %v subdirs.\n", movedFileCount, totalFileCount, len(filesToMove))
 }
 
 // Log DEBUG level message if logLevel is set to `LogLevelDebug`
 func log_debug(message string, args ...interface{}) {
 	if logLevel == LogLevelDebug {
+		defer func() {
+			if r := recover(); r != nil {
+				// LogDebug isn't defined yet
+				log.Printf(message, args...)
+			}
+		}()
 		LogDebug.Printf(message, args...)
-		bla("tesing only")
 	}
 }
 
-func bla(param string) string {
-	fmt.Println(param)
-	return param
+// getCurrentUserDownloadPath finds the current user and their home directory. The return value is the address of a
+// string variable that stores the value of the fully-qualified path to 'Downloads' dir (e.g. /Users/me/Downloads).
+func getCurrentUserDownloadPath() *string {
+	currentUser, err := user.Current()
+	dieIf(err)
+	homeDir, err := os.UserHomeDir()
+	dieIf(err)
+	defaultPath := filepath.Join(homeDir, defaultSrcDir)
+	log_debug("Using default path %v for user %v\n", defaultPath, currentUser.Username) // use log; LogInfo isn't ready
+	return &defaultPath
 }
