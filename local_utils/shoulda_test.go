@@ -4,7 +4,7 @@ import "testing"
 
 // TestContainsHP happy path calls Contains with a slice of two elements, checking that both elements return `true`.
 // To run all tests use: go test ./... (including the three dots)
-func TestContainsHP(t *testing.T) {
+func TestContains(t *testing.T) {
 	testSlice := []string{"one", "two", "not_tested", ""}
 	testCases := []struct {
 		name  string
