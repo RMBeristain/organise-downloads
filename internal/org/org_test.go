@@ -151,6 +151,9 @@ func TestMoveFile(t *testing.T) {
 		},
 	}
 
+	logging.InitZeroLog()
+	logging.ConfiguredZerologger = logging.ConfiguredZerologger.Level(-1) // Set to -1 for TraceLevel
+
 	for _, thisCase := range table {
 		t.Run(
 			thisCase.name,
@@ -160,12 +163,10 @@ func TestMoveFile(t *testing.T) {
 				workingDir := getTestsWorkingDir()
 				filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
 				expectedNewDir := filepath.Join(workingDir, thisCase.expectedPath)
-				logLevel := logging.LogLevelDebug
-				logger := logging.InitLoggingToFile(&workingDir, &logLevel)
 				filesChannel := make(chan string)
 
 				// make the call we're testing
-				go MoveFiles(workingDir, filesToMove, logger, filesChannel)
+				go MoveFiles(workingDir, filesToMove, filesChannel)
 				movedFile := <-filesChannel
 
 				// Tests
