@@ -10,18 +10,11 @@ import (
 	"github.com/RMBeristain/organise-downloads/internal/logging"
 )
 
-const defaultWorkingDir string = "Downloads"
-
 var excludedExtensions = []string{".DS_Store", ".localized"}
 
 // getTestsWorkingDir returns the fully-qualified path to a directory where we can temporarily store test artifacts.
-// By default, we will create a subfolder within ~/Downloads because we assume we'll have write permission there.
-func getTestsWorkingDir(tb testing.TB) (testsWorkingDir string) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		tb.Fatalf("Unable to determine user home dir - %v", err)
-	}
-	return filepath.Join(homeDir, defaultWorkingDir, "organise-downloads-tests")
+func getTestsWorkingDir() (testsWorkingDir string) {
+	return filepath.Join(os.TempDir(), "organise-downloads-tests")
 }
 
 // Setup function for getFilesToMove creates some test files and returns a teardownSuite function.
@@ -33,7 +26,7 @@ func setupSuiteGetFilesToMove(tb testing.TB) (
 	const testFile1 string = "file1.txt"
 	expectedSubDir = "txt_files"
 
-	testWorkingDir := getTestsWorkingDir(tb)
+	testWorkingDir := getTestsWorkingDir()
 	tb.Logf("initialising test data in %v", testWorkingDir)
 
 	if exists, err := common.PathExists(testWorkingDir); !exists && err == nil {
@@ -104,10 +97,10 @@ func TestGetFilesToMove(t *testing.T) {
 		t.Run(thisCase.name, func(t *testing.T) {
 			t.Logf("testing %v", thisCase.input)
 
-			workingDir := *common.GetCurrentUserDownloadPath(defaultWorkingDir)
+			workingDir := getTestsWorkingDir()
+			t.Logf("working on %v", workingDir)
 
 			// make the call we're testing
-			t.Logf("working on %v", workingDir)
 			filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
 
 			// Tests
@@ -164,16 +157,24 @@ func TestMoveFile(t *testing.T) {
 			func(t *testing.T) {
 				t.Logf("testing %v", thisCase.input)
 
-				workingDir := getTestsWorkingDir(t)
+				workingDir := getTestsWorkingDir()
 				filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
 				expectedNewDir := filepath.Join(workingDir, thisCase.expectedPath)
 				logLevel := logging.LogLevelDebug
 				logger := logging.InitLoggingToFile(&workingDir, &logLevel)
+				filesChannel := make(chan string)
 
 				// make the call we're testing
-				MoveFiles(workingDir, filesToMove, logger)
+				go MoveFiles(workingDir, filesToMove, logger, filesChannel)
+				movedFile := <-filesChannel
 
 				// Tests
+				if len(thisCase.input) > 0 && movedFile == "" {
+					t.Fatalf("expected a message, got empty string")
+				} else if len(thisCase.input) == 0 && movedFile != "" {
+					t.Fatalf("expected 'movedFile' to be empty string, got %v", movedFile)
+				}
+
 				files, err := os.ReadDir(expectedNewDir)
 				if err != nil {
 					t.Fatalf("expected to read files from %v, got %v", expectedNewDir, err.Error())
