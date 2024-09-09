@@ -105,9 +105,9 @@ func TestGetFilesToMove(t *testing.T) {
 			t.Logf("testing %v", thisCase.input)
 
 			workingDir := *common.GetCurrentUserDownloadPath(defaultWorkingDir)
+			t.Logf("working on %v", workingDir)
 
 			// make the call we're testing
-			t.Logf("working on %v", workingDir)
 			filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
 
 			// Tests
@@ -169,11 +169,19 @@ func TestMoveFile(t *testing.T) {
 				expectedNewDir := filepath.Join(workingDir, thisCase.expectedPath)
 				logLevel := logging.LogLevelDebug
 				logger := logging.InitLoggingToFile(&workingDir, &logLevel)
+				filesChannel := make(chan string)
 
 				// make the call we're testing
-				MoveFiles(workingDir, filesToMove, logger)
+				go MoveFiles(workingDir, filesToMove, logger, filesChannel)
+				movedFile := <-filesChannel
 
 				// Tests
+				if len(thisCase.input) > 0 && movedFile == "" {
+					t.Fatalf("expected a message, got empty string")
+				} else if len(thisCase.input) == 0 && movedFile != "" {
+					t.Fatalf("expected 'movedFile' to be empty string, got %v", movedFile)
+				}
+
 				files, err := os.ReadDir(expectedNewDir)
 				if err != nil {
 					t.Fatalf("expected to read files from %v, got %v", expectedNewDir, err.Error())

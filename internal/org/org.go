@@ -2,6 +2,7 @@
 package org
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -41,7 +42,7 @@ func GetFilesToMove(files []fs.DirEntry, excludedExtensions *[]string) (targets 
 }
 
 // MoveFiles sequentially moves each file to its corresponding directory.
-func MoveFiles(sourcePath string, filesToMove map[string][]string, logger *logging.Logr) {
+func MoveFiles(sourcePath string, filesToMove map[string][]string, logger *logging.Logr, fileChannel chan string) {
 	var movedFileCount int = 0
 	var totalFileCount int = 0
 	logr := *logger
@@ -49,28 +50,30 @@ func MoveFiles(sourcePath string, filesToMove map[string][]string, logger *loggi
 	for subDir, files := range filesToMove {
 		batchSize := len(files)
 		totalFileCount += batchSize
-		if batchSize > 0 {
-			logr.LogInfo.Printf("Working on %v %v", batchSize, subDir)
-			for i, file := range files {
-				srcFilePath := filepath.Join(sourcePath, file)
-				dstSubDir := filepath.Join(sourcePath, subDir)
-				dstFilePath := filepath.Join(dstSubDir, file)
 
-				logr.LogInfo.Printf("...moving %02d %v -> %v", i+1, srcFilePath, dstFilePath)
+		for i, file := range files {
+			srcFilePath := filepath.Join(sourcePath, file)
+			dstSubDir := filepath.Join(sourcePath, subDir)
+			dstFilePath := filepath.Join(dstSubDir, file)
 
-				if exists, err := common.PathExists(dstFilePath); !exists && err == nil {
-					_, err := common.CreateDirIfNotExists(dstSubDir)
-					dieIf(err)
-					// TODO: 2024-09-08 acquire file lock to prevent race conditions
-					dieIf(os.Rename(srcFilePath, dstFilePath))
-				} else if exists {
-					logr.LogError.Printf("Skipping file '%v' that already exists in: %v", file, dstFilePath)
-				} else {
-					logr.LogFatal.Print(err)
-				}
-				movedFileCount += 1
+			if i == 0 {
+				logr.LogInfo.Printf("Working on %v %v", batchSize, subDir)
 			}
+
+			if exists, err := common.PathExists(dstFilePath); !exists && err == nil {
+				_, err := common.CreateDirIfNotExists(dstSubDir)
+				dieIf(err)
+				// TODO: 2024-09-08 acquire file lock to prevent race conditions
+				dieIf(os.Rename(srcFilePath, dstFilePath))
+			} else if exists {
+				logr.LogError.Printf("Skipping file '%v' that already exists in: %v", file, dstFilePath)
+			} else {
+				logr.LogFatal.Print(err)
+			}
+			movedFileCount += 1
+			fileChannel <- fmt.Sprintf("%02d %v -> %v", i+1, srcFilePath, dstFilePath)
 		}
 	}
 	logr.LogInfo.Printf("Moved %v/%v files into %v subdirs.\n", movedFileCount, totalFileCount, len(filesToMove))
+	close(fileChannel)
 }
