@@ -152,7 +152,7 @@ func TestMoveFile(t *testing.T) {
 	}
 
 	logging.InitZeroLog()
-	logging.ConfiguredZerologger = logging.ConfiguredZerologger.Level(-1) // Set to -1 for TraceLevel
+	logging.ConfiguredZerologger = logging.ConfiguredZerologger.Level(0) // Set to -1 for TraceLevel
 
 	for _, thisCase := range table {
 		t.Run(
