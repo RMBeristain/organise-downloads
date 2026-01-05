@@ -19,7 +19,7 @@ var (
 func main() {
 	var pWorkingSrcDir *string
 
-	start_time := time.Now()
+	startTime := time.Now()
 
 	pDownloadDir := flag.String("downloads", defaultSrcDir, "Full path to Downloads dir")
 	pNewLogLevel := flag.Int("loglevel", int(zerolog.InfoLevel), "Use this log level [0:3]")
@@ -60,11 +60,11 @@ func main() {
 		logger.Info().Msg("No files to move.")
 	}
 
-	logger.Info().Dur("elapsedTime", time.Since(start_time)).Msg("DONE.")
+	logger.Info().Dur("elapsedTime", time.Since(startTime)).Msg("DONE.")
 	os.Exit(0)
 }
 
 // Return a slice of extensions that won't be moved into subdirs.
-func excludedExtensions() *[]string {
-	return &[]string{".DS_Store", ".localized"}
+func excludedExtensions() []string {
+	return []string{".DS_Store", ".localized"}
 }

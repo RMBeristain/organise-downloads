@@ -20,10 +20,10 @@ var (
 // GetFilesToMove return a map of subdirs to slices of files.
 //
 // - files is a slice of DirEntries that should be moved.
-// - excludedExtensions is the address of a string slice containing file or dir names that must not be moved.
+// - excludedExtensions is a slice of strings containing file or dir names that must not be moved.
 //
 // Each targets key is a destination subdir, and its value is a slice of the files that should be moved into it.
-func GetFilesToMove(files []fs.DirEntry, excludedExtensions *[]string) (targets map[string][]string) {
+func GetFilesToMove(files []fs.DirEntry, excludedExtensions []string) (targets map[string][]string) {
 	targets = make(map[string][]string)
 	for _, file := range files {
 		fileName := file.Name()
@@ -35,7 +35,7 @@ func GetFilesToMove(files []fs.DirEntry, excludedExtensions *[]string) (targets 
 		} else {
 			fileExtension, destination := common.GetExtAndSubdir(fileName)
 
-			if contains(*excludedExtensions, fileExtension) {
+			if contains(excludedExtensions, fileExtension) {
 				continue
 			}
 			targets[destination] = append(targets[destination], fileName)
@@ -46,6 +46,7 @@ func GetFilesToMove(files []fs.DirEntry, excludedExtensions *[]string) (targets 
 
 // MoveFiles sequentially moves each file to its corresponding directory.
 func MoveFiles(sourcePath string, filesToMove map[string][]string, fileChannel chan string) {
+	defer close(fileChannel)
 	var movedFileCount int = 0
 	var totalFileCount int = 0
 
@@ -78,5 +79,4 @@ func MoveFiles(sourcePath string, filesToMove map[string][]string, fileChannel c
 		}
 	}
 	logger.Info().Int("movedCount", movedFileCount).Int("totalCount", totalFileCount).Msg("moved")
-	close(fileChannel)
 }
