@@ -37,7 +37,10 @@ func main() {
 
 	if *pGenerateSample != "" {
 		if err := common.GenerateSampleToml(*pGenerateSample); err != nil {
-			logger.Fatal().Err(err).Msg("unable to generate sample TOML file")
+			// Presumably the user calls this from the command line, so we'll also print the message.
+			msg := fmt.Sprintf("unable to generate sample TOML file: %v", err)
+			fmt.Println(msg)
+			logger.Fatal().Err(err).Msg(msg)
 		}
 		logger.Info().Str("path", *pGenerateSample).Msg("generated sample TOML file")
 		return
