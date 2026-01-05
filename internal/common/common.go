@@ -14,7 +14,7 @@ import (
 )
 
 // DefaultExcludedExtensions is the list of extensions to ignore by default
-var DefaultExcludedExtensions = []string{".DS_Store", ".localized"}
+var DefaultExcludedExtensions = []string{".DS_Store", ".localized", ".crdownload", ".part", ".tmp"}
 
 var logger = &logging.ConfiguredZerologger
 
