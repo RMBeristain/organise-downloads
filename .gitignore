@@ -1,5 +1,8 @@
 # binaries
 organise-downloads
 
+# Test coverage
+coverage/*
+
 # Tools
 .vscode/*
