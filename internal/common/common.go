@@ -16,20 +16,20 @@ var logger = &logging.ConfiguredZerologger
 
 // GetCurrentUserDownloadPath finds the current user and their home directory. The return value is the address of a
 // string variable that stores the value of the fully-qualified path to 'Downloads' dir (e.g. /Users/me/Downloads).
-func GetCurrentUserDownloadPath(defaultSrcDir string) *string {
+func GetCurrentUserDownloadPath(defaultSrcDir string) (string, error) {
 	currentUser, err := user.Current()
 	if err != nil {
-		logger.Panic().Err(err).Msg("unable to determine current user")
+		return "", err
 	}
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		logger.Panic().Err(err).Str("currentUser", currentUser.Username).Msg("unable to determine home dir")
+		return "", err
 	}
 
 	workingPath := filepath.Join(homeDir, defaultSrcDir)
 	logger.Debug().Str("workingPath", workingPath).Str("currentUser", currentUser.Username).Send()
-	return &workingPath
+	return workingPath, nil
 }
 
 // PathExists returns whether the given file or directory exists
@@ -51,7 +51,7 @@ func PathExists(path string) (exists bool, err error) {
 func CreateDirIfNotExists(dirName string) (wasCreated bool, err error) {
 	if exists, err := PathExists(dirName); !exists && err == nil {
 		logger.Debug().Str("targetDir", dirName).Msg("attempting to create missing dir")
-		err = os.Mkdir(dirName, 0777)
+		err = os.Mkdir(dirName, 0755)
 		if err != nil {
 			logger.Err(err).Str("targetDir", dirName).Msg("unable to create dir")
 			return false, err
@@ -64,13 +64,6 @@ func CreateDirIfNotExists(dirName string) (wasCreated bool, err error) {
 	}
 
 	return false, nil
-}
-
-// DieIf checks whether there was an error. If an error exists, log it and terminate.
-func DieIf(err error) {
-	if err != nil {
-		logger.Fatal().Err(err).Send()
-	}
 }
 
 // GetExtAndSubdir returns a file's extension and corresponding target subdir.

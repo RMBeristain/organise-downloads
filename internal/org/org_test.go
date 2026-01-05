@@ -101,7 +101,7 @@ func TestGetFilesToMove(t *testing.T) {
 			t.Logf("working on %v", workingDir)
 
 			// make the call we're testing
-			filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
+			filesToMove := GetFilesToMove(thisCase.input, excludedExtensions)
 
 			// Tests
 			if len(filesToMove) == 0 {
@@ -161,7 +161,7 @@ func TestMoveFile(t *testing.T) {
 				t.Logf("testing %v", thisCase.input)
 
 				workingDir := getTestsWorkingDir()
-				filesToMove := GetFilesToMove(thisCase.input, &excludedExtensions)
+				filesToMove := GetFilesToMove(thisCase.input, excludedExtensions)
 				expectedNewDir := filepath.Join(workingDir, thisCase.expectedPath)
 				filesChannel := make(chan string)
 
