@@ -10,7 +10,11 @@ import (
 	"strings"
 
 	"github.com/RMBeristain/organise-downloads/internal/logging"
+	"github.com/pelletier/go-toml/v2"
 )
+
+// DefaultExcludedExtensions is the list of extensions to ignore by default
+var DefaultExcludedExtensions = []string{".DS_Store", ".localized"}
 
 var logger = &logging.ConfiguredZerologger
 
@@ -70,4 +74,27 @@ func CreateDirIfNotExists(dirName string) (wasCreated bool, err error) {
 func GetExtAndSubdir(fileName string) (fileExtension, subDirName string) {
 	fileExtension = filepath.Ext(fileName)
 	return fileExtension, strings.Replace(fileExtension, ".", "", 1) + "_files"
+}
+
+// LoadExcludedExtensions reads excluded extensions from a TOML file if path is provided, else returns defaults.
+func LoadExcludedExtensions(path string) ([]string, error) {
+	if path == "" {
+		return DefaultExcludedExtensions, nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var config struct {
+		ExcludedFiles []string `toml:"excludedFiles"`
+	}
+
+	if err := toml.NewDecoder(f).Decode(&config); err != nil {
+		return nil, err
+	}
+
+	return config.ExcludedFiles, nil
 }

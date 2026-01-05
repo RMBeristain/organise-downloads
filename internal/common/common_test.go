@@ -3,6 +3,7 @@ package common
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -121,6 +122,79 @@ func TestCreateDirIfNotExists(t *testing.T) {
 			}
 			if created != tc.expectCreated {
 				t.Errorf("Expected created=%v, got %v", tc.expectCreated, created)
+			}
+		})
+	}
+}
+
+func TestLoadExcludedExtensions(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T) string // Returns the config path to use
+		expected  []string
+		expectErr bool
+	}{
+		{
+			name: "Happy Path - No flag passed (use defaults)",
+			setup: func(t *testing.T) string {
+				return ""
+			},
+			expected:  DefaultExcludedExtensions, // Expect current hardcoded defaults
+			expectErr: false,
+		},
+		{
+			name: "Happy Path - Flag passed with valid TOML",
+			setup: func(t *testing.T) string {
+				// TOML with header 'excludedFiles' and newline separated values
+				content := `excludedFiles = [
+".mp3",
+".mp4"
+]`
+				path := filepath.Join(t.TempDir(), "config.toml")
+				if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+					t.Fatalf("unable to write test file: %v", err)
+				}
+				return path
+			},
+			expected:  []string{".mp3", ".mp4"},
+			expectErr: false,
+		},
+		{
+			name: "Error Path - File does not exist",
+			setup: func(t *testing.T) string {
+				return filepath.Join(t.TempDir(), "non_existent.toml")
+			},
+			expected:  nil,
+			expectErr: true,
+		},
+		{
+			name: "Error Path - Invalid TOML content",
+			setup: func(t *testing.T) string {
+				content := `INVALID TOML CONTENT`
+				path := filepath.Join(t.TempDir(), "bad_config.toml")
+				if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+					t.Fatalf("unable to write test file: %v", err)
+				}
+				return path
+			},
+			expected:  nil,
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := tc.setup(t)
+			got, err := LoadExcludedExtensions(configPath)
+
+			if tc.expectErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+			} else if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			} else if !reflect.DeepEqual(got, tc.expected) {
+				t.Errorf("expected %v, got %v", tc.expected, got)
 			}
 		})
 	}

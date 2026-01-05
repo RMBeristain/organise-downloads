@@ -23,6 +23,7 @@ func main() {
 
 	pDownloadDir := flag.String("downloads", defaultSrcDir, "Full path to Downloads dir")
 	pNewLogLevel := flag.Int("loglevel", int(zerolog.InfoLevel), "Use this log level [0:3]")
+	pExcludedExtensions := flag.String("excludeExtensions", "", "Path to TOML file with excluded extensions")
 	flag.Parse() // read command line flags
 
 	if int(zerolog.TraceLevel) <= *pNewLogLevel && *pNewLogLevel <= int(zerolog.PanicLevel) {
@@ -52,7 +53,11 @@ func main() {
 	}
 
 	filesChannel := make(chan string, 4)
-	filesToMove := org.GetFilesToMove(files, excludedExtensions())
+	excluded, err := common.LoadExcludedExtensions(*pExcludedExtensions)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("unable to load excluded extensions")
+	}
+	filesToMove := org.GetFilesToMove(files, excluded)
 
 	if len(filesToMove) > 0 {
 		logger.Debug().Str("filesToMove", fmt.Sprintf("%v", filesToMove))
@@ -65,9 +70,4 @@ func main() {
 	}
 
 	logger.Info().Dur("elapsedTime", time.Since(startTime)).Msg("DONE.")
-}
-
-// Return a slice of extensions that won't be moved into subdirs.
-func excludedExtensions() []string {
-	return []string{".DS_Store", ".localized"}
 }
