@@ -1,12 +1,13 @@
 package common
 
 import (
+	"path/filepath"
 	"testing"
 )
 
 func TestPathExists(t *testing.T) {
 	goodPath := "."
-	badPath := "/I_should_not_exist"
+	badPath := filepath.Join(t.TempDir(), "should-not-exist")
 
 	if exists, err := PathExists(goodPath); !exists {
 		t.Errorf("Unable to find '.'")

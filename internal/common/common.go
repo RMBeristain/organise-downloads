@@ -51,7 +51,7 @@ func PathExists(path string) (exists bool, err error) {
 func CreateDirIfNotExists(dirName string) (wasCreated bool, err error) {
 	if exists, err := PathExists(dirName); !exists && err == nil {
 		logger.Debug().Str("targetDir", dirName).Msg("attempting to create missing dir")
-		err = os.Mkdir(dirName, 0777)
+		err = os.Mkdir(dirName, 0755)
 		if err != nil {
 			logger.Err(err).Str("targetDir", dirName).Msg("unable to create dir")
 			return false, err
