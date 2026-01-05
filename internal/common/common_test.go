@@ -127,6 +127,62 @@ func TestCreateDirIfNotExists(t *testing.T) {
 	}
 }
 
+func TestGenerateSampleToml(t *testing.T) {
+	tests := []struct {
+		name      string
+		setup     func(t *testing.T) string
+		validate  func(t *testing.T, path string)
+		expectErr bool
+	}{
+		{
+			name: "Happy Path - Create valid TOML file",
+			setup: func(t *testing.T) string {
+				return filepath.Join(t.TempDir(), "default_config.toml")
+			},
+			validate: func(t *testing.T, path string) {
+				if _, err := os.Stat(path); os.IsNotExist(err) {
+					t.Fatalf("File was not created at %s", path)
+				}
+				got, err := LoadExcludedExtensions(path)
+				if err != nil {
+					t.Fatalf("Failed to load generated file: %v", err)
+				}
+				if !reflect.DeepEqual(got, DefaultExcludedExtensions) {
+					t.Errorf("Expected %v, got %v", DefaultExcludedExtensions, got)
+				}
+			},
+			expectErr: false,
+		},
+		{
+			name: "Error Path - Cannot create file (directory missing)",
+			setup: func(t *testing.T) string {
+				return filepath.Join(t.TempDir(), "missing", "config.toml")
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := tc.setup(t)
+			err := GenerateSampleToml(path)
+
+			if tc.expectErr {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if tc.validate != nil {
+					tc.validate(t, path)
+				}
+			}
+		})
+	}
+}
+
 func TestLoadExcludedExtensions(t *testing.T) {
 	tests := []struct {
 		name      string

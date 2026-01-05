@@ -24,6 +24,7 @@ func main() {
 	pDownloadDir := flag.String("downloads", defaultSrcDir, "Full path to Downloads dir")
 	pNewLogLevel := flag.Int("loglevel", int(zerolog.InfoLevel), "Use this log level [0:3]")
 	pExcludedExtensions := flag.String("excludeExtensions", "", "Path to TOML file with excluded extensions")
+	pGenerateSample := flag.String("generateSampleTomlFile", "", "Generate a sample TOML file at the specified path and exit")
 	flag.Parse() // read command line flags
 
 	if int(zerolog.TraceLevel) <= *pNewLogLevel && *pNewLogLevel <= int(zerolog.PanicLevel) {
@@ -33,6 +34,14 @@ func main() {
 	}
 	logger := logging.InitZeroLog()
 	logger.Trace().Int("GlobalLogLevel", *pNewLogLevel).Msg("set new log level")
+
+	if *pGenerateSample != "" {
+		if err := common.GenerateSampleToml(*pGenerateSample); err != nil {
+			logger.Fatal().Err(err).Msg("unable to generate sample TOML file")
+		}
+		logger.Info().Str("path", *pGenerateSample).Msg("generated sample TOML file")
+		return
+	}
 
 	if *pDownloadDir != defaultSrcDir {
 		logger.Debug().Str("downloadDir", *pDownloadDir).Msg("changed source dir")

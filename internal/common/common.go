@@ -98,3 +98,20 @@ func LoadExcludedExtensions(path string) ([]string, error) {
 
 	return config.ExcludedFiles, nil
 }
+
+// GenerateSampleToml creates a default TOML file with the contents of DefaultExcludedExtensions.
+func GenerateSampleToml(path string) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	config := struct {
+		ExcludedFiles []string `toml:"excludedFiles"`
+	}{
+		ExcludedFiles: DefaultExcludedExtensions,
+	}
+
+	return toml.NewEncoder(f).Encode(config)
+}
