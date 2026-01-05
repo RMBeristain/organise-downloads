@@ -135,7 +135,7 @@ func TestGenerateSampleToml(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name: "Happy Path - Create valid TOML file",
+			name: "Happy Path - Create valid TOML file (explicit filename)",
 			setup: func(t *testing.T) string {
 				return filepath.Join(t.TempDir(), "default_config.toml")
 			},
@@ -152,6 +152,53 @@ func TestGenerateSampleToml(t *testing.T) {
 				}
 			},
 			expectErr: false,
+		},
+		{
+			name: "Happy Path - Create valid TOML file (directory only)",
+			setup: func(t *testing.T) string {
+				return t.TempDir()
+			},
+			validate: func(t *testing.T, path string) {
+				expectedPath := filepath.Join(path, "sampleOrganiseDownloads.toml")
+				if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
+					t.Fatalf("File was not created at %s", expectedPath)
+				}
+				got, err := LoadExcludedExtensions(expectedPath)
+				if err != nil {
+					t.Fatalf("Failed to load generated file: %v", err)
+				}
+				if !reflect.DeepEqual(got, DefaultExcludedExtensions) {
+					t.Errorf("Expected %v, got %v", DefaultExcludedExtensions, got)
+				}
+			},
+			expectErr: false,
+		},
+		{
+			name: "Error Path - File already exists (directory provided)",
+			setup: func(t *testing.T) string {
+				dir := t.TempDir()
+				filePath := filepath.Join(dir, "sampleOrganiseDownloads.toml")
+				if err := os.WriteFile(filePath, []byte("existing content"), 0644); err != nil {
+					t.Fatalf("unable to create existing file: %v", err)
+				}
+				return dir
+			},
+			expectErr: true,
+		},
+		{
+			name: "Error Path - PathExists fails (directory no execute permission)",
+			setup: func(t *testing.T) string {
+				// Create a directory with read/write but NO execute permissions (0600)
+				// This allows os.Stat(dir) to succeed, but os.Stat(dir/file) to fail with EACCES
+				dir := filepath.Join(t.TempDir(), "no_exec_dir")
+				if err := os.Mkdir(dir, 0600); err != nil {
+					t.Fatalf("unable to create dir: %v", err)
+				}
+				// Restore permissions after test so cleanup works
+				t.Cleanup(func() { os.Chmod(dir, 0755) })
+				return dir
+			},
+			expectErr: true,
 		},
 		{
 			name: "Error Path - Cannot create file (directory missing)",

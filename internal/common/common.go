@@ -3,6 +3,7 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/user"
@@ -101,6 +102,20 @@ func LoadExcludedExtensions(path string) ([]string, error) {
 
 // GenerateSampleToml creates a default TOML file with the contents of DefaultExcludedExtensions.
 func GenerateSampleToml(path string) error {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
+		path = filepath.Join(path, "sampleOrganiseDownloads.toml")
+		exists, err := PathExists(path)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("file already exists at %s", path)
+		}
+		// tell the user
+		fmt.Printf("Generating sample TOML file at %s\n", path)
+	}
+
 	f, err := os.Create(path)
 	if err != nil {
 		return err
