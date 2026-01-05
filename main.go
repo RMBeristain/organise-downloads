@@ -17,7 +17,7 @@ var (
 )
 
 func main() {
-	var pWorkingSrcDir *string
+	var workingSrcDir string
 
 	startTime := time.Now()
 
@@ -35,13 +35,17 @@ func main() {
 
 	if *pDownloadDir != defaultSrcDir {
 		logger.Debug().Str("downloadDir", *pDownloadDir).Msg("changed source dir")
-		pWorkingSrcDir = pDownloadDir // use command line value
+		workingSrcDir = *pDownloadDir // use command line value
 	} else {
-		pWorkingSrcDir = common.GetCurrentUserDownloadPath(defaultSrcDir)
+		var err error
+		workingSrcDir, err = common.GetCurrentUserDownloadPath(defaultSrcDir)
+		if err != nil {
+			logger.Fatal().Err(err).Msg("unable to determine downloads directory")
+		}
 	}
 
 	logger.Info().Msg("START.")
-	files, err := os.ReadDir(*pWorkingSrcDir) // get all files
+	files, err := os.ReadDir(workingSrcDir) // get all files
 
 	if err != nil {
 		logger.Fatal().Err(err).Msg(err.Error())
@@ -52,7 +56,7 @@ func main() {
 
 	if len(filesToMove) > 0 {
 		logger.Debug().Str("filesToMove", fmt.Sprintf("%v", filesToMove))
-		go org.MoveFiles(*pWorkingSrcDir, filesToMove, filesChannel)
+		go org.MoveFiles(workingSrcDir, filesToMove, filesChannel)
 		for fileMoved := range filesChannel {
 			logger.Info().Str("filePath", fileMoved).Msg("new location")
 		}
@@ -61,7 +65,6 @@ func main() {
 	}
 
 	logger.Info().Dur("elapsedTime", time.Since(startTime)).Msg("DONE.")
-	os.Exit(0)
 }
 
 // Return a slice of extensions that won't be moved into subdirs.

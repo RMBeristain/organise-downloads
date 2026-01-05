@@ -13,7 +13,6 @@ import (
 
 var (
 	contains = local_utils.Contains
-	dieIf    = common.DieIf
 	logger   = &logging.ConfiguredZerologger
 )
 
@@ -65,9 +64,15 @@ func MoveFiles(sourcePath string, filesToMove map[string][]string, fileChannel c
 
 			if exists, err := common.PathExists(dstFilePath); !exists && err == nil {
 				_, err := common.CreateDirIfNotExists(dstSubDir)
-				dieIf(err)
+				if err != nil {
+					logger.Err(err).Str("subDir", subDir).Msg("skipping batch: unable to create dir")
+					continue
+				}
 				// TODO: 2024-09-08 acquire file lock to prevent race conditions
-				dieIf(os.Rename(srcFilePath, dstFilePath))
+				if err := os.Rename(srcFilePath, dstFilePath); err != nil {
+					logger.Err(err).Str("file", file).Msg("skipping file: unable to rename")
+					continue
+				}
 			} else if exists {
 				logger.Err(err).Str("fileName", file).Str("dstFilePath", dstFilePath).Msg("skipped")
 			} else {
