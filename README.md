@@ -1,20 +1,54 @@
 # Organise Downloads
 
-Organise `~/Downloads` folders.
+![Build Status](https://github.com/RMBeristain/organise-downloads/actions/workflows/go.yaml/badge.svg)
 
-For example, move 'file.exe' to 'exe_folder' subdir to keep things tidy.
+A CLI tool to organise your `~/Downloads` folder by moving files into subdirectories based on their extensions.
 
-Can add exceptions.
+For example, it moves `file.exe` to an `exe_folder` subdirectory to keep things tidy.
 
-For options run with `-help`
+## Features
 
-## Testing
+- **Automatic Sorting**: Organises files into folders based on file type.
+- **Exceptions**: Supports adding exceptions for specific files.
+- **Cross-Platform**: Supports recent Linux and macOS versions.
 
-This project uses vanilla tests.
+## Installation
 
-### Run and view tests on command line
+### Prerequisites
 
-```zsh
+- Go installed.
+
+### Build from Source
+
+To build from source, clone the repository and run `go build` from the root folder:
+
+```bash
+go build -o organise-downloads
+```
+
+## Usage
+
+Run the program to organise your downloads:
+
+```bash
+./organise-downloads
+```
+
+To see available options and configure exceptions:
+
+```bash
+./organise-downloads -help
+```
+
+## Development
+
+### Testing
+
+This project uses the standard Go testing framework.
+
+#### Run and view tests on command line
+
+```bash
 go test -v -cover ./...
 ```
 
