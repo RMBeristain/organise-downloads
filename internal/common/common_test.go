@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -83,6 +84,7 @@ func TestCreateDirIfNotExists(t *testing.T) {
 		dirPath       string
 		expectCreated bool
 		expectError   bool
+		skipOnWindows bool
 	}{
 		{
 			name:          "Directory already exists",
@@ -101,6 +103,7 @@ func TestCreateDirIfNotExists(t *testing.T) {
 			dirPath:       filepath.Join(readOnlyDir, "fail-subdir"),
 			expectCreated: false,
 			expectError:   true,
+			skipOnWindows: true,
 		},
 		{
 			name:          "Path error (PathExists fails)",
@@ -112,6 +115,10 @@ func TestCreateDirIfNotExists(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skipOnWindows && runtime.GOOS == "windows" {
+				t.Skip("Skipping Unix-specific permission test on Windows")
+			}
+
 			created, err := CreateDirIfNotExists(tc.dirPath)
 
 			if tc.expectError && err == nil {
@@ -129,10 +136,11 @@ func TestCreateDirIfNotExists(t *testing.T) {
 
 func TestGenerateSampleToml(t *testing.T) {
 	tests := []struct {
-		name      string
-		setup     func(t *testing.T) string
-		validate  func(t *testing.T, path string)
-		expectErr bool
+		name          string
+		setup         func(t *testing.T) string
+		validate      func(t *testing.T, path string)
+		expectErr     bool
+		skipOnWindows bool
 	}{
 		{
 			name: "Happy Path - Create valid TOML file (explicit filename)",
@@ -198,7 +206,8 @@ func TestGenerateSampleToml(t *testing.T) {
 				t.Cleanup(func() { os.Chmod(dir, 0755) })
 				return dir
 			},
-			expectErr: true,
+			expectErr:     true,
+			skipOnWindows: true,
 		},
 		{
 			name: "Error Path - Cannot create file (directory missing)",
@@ -211,6 +220,10 @@ func TestGenerateSampleToml(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skipOnWindows && runtime.GOOS == "windows" {
+				t.Skip("Skipping Unix-specific permission test on Windows")
+			}
+
 			path := tc.setup(t)
 			err := GenerateSampleToml(path)
 
