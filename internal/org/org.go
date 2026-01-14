@@ -62,13 +62,17 @@ func MoveFiles(sourcePath string, filesToMove map[string][]string, fileChannel c
 				logger.Info().Int("batchSize", batchSize).Str("subDir", subDir).Msg("processing")
 			}
 
+			if isFileInUse(srcFilePath) {
+				logger.Debug().Str("file", file).Msg("skipping file: currently in use")
+				continue
+			}
+
 			if exists, err := common.PathExists(dstFilePath); !exists && err == nil {
 				_, err := common.CreateDirIfNotExists(dstSubDir)
 				if err != nil {
 					logger.Err(err).Str("subDir", subDir).Msg("skipping batch: unable to create dir")
 					continue
 				}
-				// TODO: 2024-09-08 acquire file lock to prevent race conditions
 				if err := os.Rename(srcFilePath, dstFilePath); err != nil {
 					logger.Err(err).Str("file", file).Msg("skipping file: unable to rename")
 					continue
