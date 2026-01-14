@@ -49,6 +49,13 @@ To build from source, clone the repository and run `go build` from the root fold
 go build -o organise-downloads
 ```
 
+#### Build for windows
+
+I run this program on windows, but I compile it from linux. You can do that with:
+```bash
+GOOS=windows GOARCH=amd64 go build -o organise-downloads.exe
+```
+
 ## Usage
 
 Run the program to organise your downloads:
