@@ -332,3 +332,16 @@ func TestMoveFiles_EdgeCases(t *testing.T) {
 		}
 	})
 }
+
+func TestIsFileInUse(t *testing.T) {
+	tmp := t.TempDir()
+	file := filepath.Join(tmp, "test.txt")
+	if err := os.WriteFile(file, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Happy path: file exists and is not locked.
+	if isFileInUse(file) {
+		t.Errorf("Expected file to be reported as not in use")
+	}
+}
